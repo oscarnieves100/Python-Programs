@@ -43,9 +43,10 @@ print('R^2 = ' + str(R2))
 
 # PLOTS
 plt.figure(1)
-line1 = plt.scatter(x,S,color='r')
-line2 = plt.plot(x,y,color='b')
-plt.xlabel('x', fontsize=-16)
+plt.scatter(x,S,color='r',label='Data')
+plt.plot(x,y,color='b',label='Fit')
+plt.xlabel('x', fontsize=16)
 plt.ylabel('y', fontsize=16)
 plt.title("Linear Fit Least Squares")
 plt.show()
+plt.legend()
