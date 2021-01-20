@@ -13,7 +13,7 @@ np.random.seed(0) # Set seed
 
 # Input parameters
 H_bias = 0.35 # Bias of the coin
-flips = 1000 # Number of coin flips
+flips = 150 # Number of coin flips
 N = 200 # number of points in p range
 bias_range = np.linspace(0,1,N)
 
@@ -40,11 +40,11 @@ flipV = np.linspace(1,flips,flips)
 maxP = np.zeros(flips)
 for i in range(flips):
     maxP[i] = np.NaN # make values invisible for plotting
-    
-yv2 = H_bias * np.ones(flips)
-fig = plt.figure()
-camera = Camera(fig)
 
+yv2 = H_bias * np.ones(flips)
+
+fig, axes = plt.subplots(nrows=1, ncols=2)
+camera = Camera(fig)
 for i in range(flips):
     # Likelihood function (assuming binomial distribution)
     p = bias_range**flip_array[i]
@@ -64,7 +64,8 @@ for i in range(flips):
     index0 = np.where( p_posterior == np.max(p_posterior) )
     maxP[i] = bias_range[index0[0][0]]
     
-    # Generate plot
+    # Generate plos
+    plt.subplots_adjust(wspace=0.5)
     plt.subplot(1,2,1)
     plt.plot(bias_range, p_posterior, color='b')
     plt.axvline(x=H_bias,color='r')
@@ -76,6 +77,7 @@ for i in range(flips):
     plt.plot(flipV, yv2, color='r')
     plt.xlabel('Number of coin flips', fontsize=16)
     plt.ylabel('theta', fontsize=16)
-    plt.ylim([0,1])
+    plt.ylim([0.2,0.5])
     camera.snap()
-animation = camera.animate()
+anim = camera.animate()
+#anim.save('Bayesian_coin_flip_gauss.gif')
