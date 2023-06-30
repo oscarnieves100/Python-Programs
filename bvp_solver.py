@@ -27,24 +27,8 @@ partial derivative matrices, namely Dx, Dxx, Dy and Dyy, and the Laplacian
 operator. However, the main function 'solve_pde()' takes in any left-hand
 side operator LHS as an input, so as the user you can define this L matrix
 using anything you like, even your own derivative matrices of arbitrary order.
-
-%-----------------------------------------------------------------------------%
-Important limitations:
-    
-    * the function 'solve_pde()' works best when the numerical grid is uniform
-    across (e.g. when the step-sizes dx and dy are equal), otherwise there will 
-    be inaccuracies in the solutions. If you are unsure of how to define a uniform
-    grid for a certain set of coordinates, refer to the function
-    'optimized_grid()' near the bottom
-    
-    * The computed solution will only exist in the so-called 'domain' of the 
-    solution which is described by a binary matrix which is part of the Shape
-    class, for instance the domain is usually Shape.area, while Shape.boundary
-    gives you the outer boundary of the domain. 
-
 %-----------------------------------------------------------------------------%    
 Author: Oscar A. Nieves
-
 %-----------------------------------------------------------------------------%
 """
 import numpy as np
@@ -412,61 +396,32 @@ def linear_solver(LHS: np.ndarray,
     assert type(boundary_values) is sp.sparse._csc.csc_matrix
     N = np.prod( boundary.shape )
     
-    total_boundary = np.array( boundary.todense() ).flatten()[:,None]
-    total_boundary_values = np.array( boundary_values.todense() ).flatten()[:,None]
-    inner_domain = np.array( inner_domain.todense() ).flatten()[:,None]
-    
-    # Check dimensions
-    try:
-        assert total_boundary.shape[0] <= 1
-        new_boundary = total_boundary
-    except:
-        new_boundary = total_boundary.transpose() # ensure boundary is a row vector
-    
-    try:
-        assert total_boundary_values.shape[0] >= 1
-        boundary_values = total_boundary_values
-    except:
-        boundary_values = total_boundary_values.transpose() # ensure boundary is 
-                                                            # a column vector       
-    try:
-        assert inner_domain.shape[0] <= 1
-    except:
-        inner_domain = inner_domain.transpose() # ensure domain is a row vector    
+    boundary_vector = np.array( boundary.todense() ).flatten()[None,:]
+    BC_vector = np.array( boundary_values.todense() ).flatten()[:,None]
+    inner_domain_vector = np.array( inner_domain.todense() ).flatten()[None,:]
     
     # Move boundary values to RHS of equation system  
-    LHS_mask = csc_matrix( LHS.multiply(new_boundary) )
-    new_source = source.flatten()[:,None] - LHS_mask @ boundary_values
-    try:
-        assert new_source.shape[0] <= 1
-    except:
-        new_source = new_source.transpose() # convert to row vector
-    
-    RHS_diag = csc_matrix( sp.sparse.spdiags( new_source, 0 ) )
+    LHS_mask = csc_matrix( LHS.multiply(boundary_vector) )
+    RHS = csc_matrix( source.flatten()[:,None] - LHS_mask @ BC_vector )
     
     # remove columns
     LHS_reduced_cols = \
-        csc_matrix( LHS.transpose()[inner_domain[0]].transpose() )
-    RHS_reduced_cols = \
-        RHS_diag.transpose()[inner_domain[0]].transpose()
+        csc_matrix( LHS.transpose()[inner_domain_vector[0,:]].transpose() )
     
     # remove rows
-    LHS_reduced_rows = LHS_reduced_cols[inner_domain[0]]
-    RHS_reduced_rows = RHS_reduced_cols[inner_domain[0]]
-    
-    # Create new arrays
-    LHS_new = LHS_reduced_rows
-    RHS_new = RHS_reduced_rows @ np.ones( (RHS_reduced_rows.shape[0], 1) )
-    print("# of equations to solve: %s" %(LHS_new.shape[0]))
-    
+    LHS_system = LHS_reduced_cols[inner_domain_vector[0,:]]
+    RHS_system = RHS[inner_domain_vector[0,:]]
+    print("# of equations to solve: %s out of %s grid points" %(LHS_system.shape[0],
+                                                                N))
+
     # Solve u(x,y) inside domain
-    solution_inner = sp.sparse.linalg.spsolve(LHS_new, RHS_new)
+    solution_inner = sp.sparse.linalg.spsolve(LHS_system, RHS_system)
     print("Solution on inner points complete. Reconstructing full system...")
 
     # Full solution
     full_solution = np.zeros((N,))
-    full_solution[inner_domain[0]] = solution_inner
-    full_solution[new_boundary[0]] = boundary_values[:,0][new_boundary[0]]
+    full_solution[inner_domain_vector[0,:]] = solution_inner
+    full_solution[boundary_vector[0,:]] = BC_vector[:,0][boundary_vector[0,:]]
     
     full_solution = np.reshape( full_solution, np.shape(boundary) )
     print("Done.")
