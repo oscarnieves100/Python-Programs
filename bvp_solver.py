@@ -311,7 +311,28 @@ def solve_bvp(X: np.ndarray,
               LHS: np.ndarray,
               source: np.ndarray = None,
               plot_solution: bool=True) -> np.ndarray:
+    """Solves a boundary-value problem of the form LHS*u = source
+    where LHS is the left-hand side operator, source is the source function 
+    (optional) and return u(x,y) as the solution over the prescribed domain,
+    and given the boundary values.
     
+    Args:
+        X, Y: meshgrid matrices of coordinates for a rectangle of size Nx by Ny,
+              where Nx is the number of points in x-direction and Ny is the number
+              of points in the y-direction
+        dx, dy: step-size in each direction
+        domain: a (Ny,Nx) binary matrix in csc_matrix sparse format (scipy sparse)
+        inner_domain: a (Ny,Nx) binary matrix similar to domain but excluding boundary 
+                      points
+        boundary: (Ny,Nx) binary matrix containing boundary point locations in sparse
+                  csc_matrix format
+        boundary_values: the boundary condition values in sparse csc_matrix format of
+                         dimension (Ny,Nx)
+        LHS: left-hand side operator matrix in sparse csc_matrix format of dimension
+             (Ny,Nx)
+        source: source function in sparse csc_matrix format of dimension (Ny,Nx)
+        plot_solution: True if you want plots
+    """
     # Start timer
     start_time = time.time()
     
@@ -323,11 +344,11 @@ def solve_bvp(X: np.ndarray,
     u_boundary = 0.0
     boundary_points = 0
     for n in range(N):
-        u_boundary += csc_matrix( np.array(boundary[n].todense()) * \
-                                 boundary_values[n] )
-        boundary_points += csc_matrix( np.array(boundary[n].todense()) )
+        u_boundary += csc_matrix( boundary[n].multiply(csc_matrix(boundary_values[n])) )
+        boundary_points += boundary[n]
     
     # Solve system
+    if source is not sp.sparse._csc.csc_matrix: source = csc_matrix(source)
     solution = linear_solver(LHS = LHS, 
                              source = source, 
                              inner_domain = inner_domain,
@@ -394,15 +415,17 @@ def linear_solver(LHS: np.ndarray,
     assert type(LHS) is sp.sparse._csc.csc_matrix
     assert type(boundary) is sp.sparse._csc.csc_matrix
     assert type(boundary_values) is sp.sparse._csc.csc_matrix
+    assert type(source) is sp.sparse._csc.csc_matrix
     N = np.prod( boundary.shape )
     
     boundary_vector = np.array( boundary.todense() ).flatten()[None,:]
     BC_vector = np.array( boundary_values.todense() ).flatten()[:,None]
     inner_domain_vector = np.array( inner_domain.todense() ).flatten()[None,:]
+    source_in = np.array( source.todense() ).flatten()[:,None]
     
     # Move boundary values to RHS of equation system  
     LHS_mask = csc_matrix( LHS.multiply(boundary_vector) )
-    RHS = csc_matrix( source.flatten()[:,None] - LHS_mask @ BC_vector )
+    RHS = csc_matrix( source_in - LHS_mask @ BC_vector )
     
     # remove columns
     LHS_reduced_cols = \
