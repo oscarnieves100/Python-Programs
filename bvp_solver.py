@@ -73,32 +73,39 @@ class Shape:
         self.boundary = boundary
         self.hole = csc_matrix( np.logical_xor(area.todense(), boundary.todense()) )
         self.subdomains = []
+        self.outer_boundary = self.extract_outer_boundary()
     
     def union(self, other):
         self_area = self.area.todense()
         other_area = other.area.todense()
         new_area = np.logical_or(self_area, other_area)
-        self_boundary = self.boundary.todense()
-        other_boundary = other.boundary.todense()
-        new_boundary = np.logical_and( np.logical_or(self_boundary, other_boundary),
-                        np.logical_or( np.logical_not( np.logical_and(self_area, other_area)),
-                        np.logical_and( self_boundary, other_boundary) ) )
+        new_boundary = extract_boundary(new_area)
         self.area = csc_matrix(new_area)
         self.boundary = csc_matrix(new_boundary)
-        self.hole = csc_matrix( np.logical_xor(new_area, new_boundary) )
+        self.outer_boundary = self.extract_outer_boundary()
+        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
+                                               self.boundary.todense()) )
     
     def insert_hole(self, other):
         self_area = self.area.todense()
         other_area = other.area.todense()
         assert other_area in self_area
         new_area = np.logical_xor(self_area, other.hole.todense())
-        new_boundary = self.boundary.todense()
+        new_boundary = extract_boundary(new_area)
         self.area = csc_matrix(new_area)
         self.boundary = csc_matrix(new_boundary)
-        self.hole = csc_matrix( np.logical_xor( np.logical_xor(new_area, new_boundary), 
-                               other.boundary.todense() ) )
+        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
+                                               self.boundary.todense()) )
         self.subdomains.append( other )
-
+        self.outer_boundary = self.extract_outer_boundary()
+        
+    def extract_outer_boundary(self):
+        outer_boundary = self.boundary
+        if len(self.subdomains) > 0:
+            for n in range(len(self.subdomains)):
+                outer_boundary -= self.subdomains[n].boundary
+        return csc_matrix(outer_boundary)
+            
 class Rectangle(Shape):
     """A rectangle shape
     
@@ -232,8 +239,7 @@ def extract_boundary(A: np.ndarray) -> np.ndarray:
         A: the binary matrix describing the shape/geometry of the domain
     """
     A_trial = np.ones((3,3)); find_edges(A_trial) # compilation step
-    (Nx,Ny) = np.shape(A)
-    
+
     # Extract points from outer frame 
     if type(A) is np.matrix: A = np.array(A)
     edge = np.zeros(np.shape(A))
@@ -512,8 +518,11 @@ def mesh_search(xlims: tuple, ylims: tuple, Nmin:int, Nmax: int,
 # Other useful functions
 ###############################################################################    
 def plot_matrix(A):
-    A_input = A[:]
-    if type(A) is sp.sparse._csc.csc_matrix: A_input = A.todense()
+    if type(A) is sp.sparse._csc.csc_matrix: 
+        A_input = A.todense()
+    else:
+        A_input = A
+    plt.figure()
     plt.matshow(A_input); plt.colorbar()
     return 0
 
