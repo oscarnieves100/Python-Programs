@@ -85,6 +85,18 @@ class Shape:
         self.outer_boundary = self.extract_outer_boundary()
         self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
                                                self.boundary.todense()) )
+        
+    def difference(self, other):
+        self_area = self.area.todense()
+        other_area = other.area.todense()
+        intersection = np.logical_and(self_area, other_area)
+        new_area = np.logical_and(self_area, np.logical_not(intersection))
+        new_boundary = extract_boundary(new_area)
+        self.area = csc_matrix(new_area)
+        self.boundary = csc_matrix(new_boundary)
+        self.outer_boundary = csc_matrix(new_boundary)
+        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
+                                               self.boundary.todense()) )
     
     def insert_hole(self, other):
         self_area = self.area.todense()
@@ -372,25 +384,23 @@ def solve_bvp(X: np.ndarray,
     if plot_solution:
         CM = 'RdBu'
         
-        fig, ax = plt.subplots( figsize=(6,6) )
+        fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
         c = ax.pcolor(X, Y, np.array(u_boundary.todense()), cmap=CM)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_title(r"$u|_{\partial\Omega}(x,y)$")
         ax.grid(visible=None)
         fig.colorbar(c, ax=ax)
-        
         fig.tight_layout()
         plt.show()
         
-        fig, ax = plt.subplots( figsize=(6,6) )
+        fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
         c = ax.pcolor(X, Y, np.array(solution.todense()), cmap=CM)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_title(r"$u(x,y)$")
         ax.grid(visible=None)
         fig.colorbar(c, ax=ax)
-
         fig.tight_layout()
         plt.show()
     
@@ -522,7 +532,6 @@ def plot_matrix(A):
         A_input = A.todense()
     else:
         A_input = A
-    plt.figure()
     plt.matshow(A_input); plt.colorbar()
     return 0
 
@@ -530,15 +539,14 @@ def plot_stream(X:np.ndarray, Y: np.ndarray, A: np.ndarray,
                 stream: np.ndarray, density: float, color: str="white"):
     CM = 'RdBu'
     
-    fig, ax = plt.subplots( figsize=(6,6) )
+    fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
     c = ax.pcolor(X, Y, np.array(A.todense()), cmap=CM)
     ax.streamplot(X, Y, np.array(stream[0].todense()), np.array(stream[1].todense() ), 
-                   density=1.4, linewidth=None, color=color)
+                   density=density, linewidth=None, color=color)
     ax.set_xlabel(r"$x$")
     ax.set_ylabel(r"$y$")
-    ax.set_title(r"$u|_{\partial\Omega}(x,y)$")
+    ax.set_title(r"$\nabla u(x,y)$")
     ax.grid(visible=None)
     fig.colorbar(c, ax=ax)
-    
     fig.tight_layout()
     plt.show()

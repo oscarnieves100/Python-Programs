@@ -31,7 +31,7 @@ Omega.insert_hole( bvp.Circle(X,Y,diameter/2,dx,dy,x0,y0) )
 # Extract domain and boundary values
 domain = Omega.area
 inner_domain = Omega.hole
-boundary_list = [Omega.boundary, Omega.subdomains[0].boundary]
+boundary_list = [Omega.outer_boundary, Omega.subdomains[0].boundary]
 
 # Define boundary value functions for each boundary
 def BC_func(x,y,theta):
