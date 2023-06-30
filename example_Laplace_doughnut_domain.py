@@ -57,3 +57,9 @@ solution = bvp.solve_bvp(X = X,
                          LHS = LHS, 
                          source = None, 
                          plot_solution = True)
+
+# Compute gradient field
+stream = bvp.grad(solution, dx, dy)
+
+# Plot vector field
+bvp.plot_stream(X=X, Y=Y, A=solution, stream=stream, density=2.0, color="black")

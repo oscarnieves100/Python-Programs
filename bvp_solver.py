@@ -294,8 +294,11 @@ def Laplacian(Nx: int, Ny: int, dx: float, dy: float):
     return Dxx(Nx,Ny,dx) + Dyy(Nx,Ny,dy) 
 
 def grad(A: np.ndarray, dx: float, dy: float) -> list:
-    (Nx,Ny) = np.shape(A)
-    return [Dx(Nx,Ny,dx) @ A, Dy(Nx, Ny, dy) @ A]
+    (Ny,Nx) = np.shape(A)
+    A = csc_matrix( np.array(A.todense()).flatten()[:,None] )
+    grad_x = np.array((Dx(Nx, Ny, dx) @ A).todense()).reshape((Ny,Nx))
+    grad_y = np.array((Dy(Nx, Ny, dy) @ A).todense()).reshape((Ny,Nx))
+    return [csc_matrix( grad_x ), csc_matrix( grad_y )]
 
 ###############################################################################
 # Linear PDE solver
@@ -513,3 +516,20 @@ def plot_matrix(A):
     if type(A) is sp.sparse._csc.csc_matrix: A_input = A.todense()
     plt.matshow(A_input); plt.colorbar()
     return 0
+
+def plot_stream(X:np.ndarray, Y: np.ndarray, A: np.ndarray, 
+                stream: np.ndarray, density: float, color: str="white"):
+    CM = 'RdBu'
+    
+    fig, ax = plt.subplots( figsize=(6,6) )
+    c = ax.pcolor(X, Y, np.array(A.todense()), cmap=CM)
+    ax.streamplot(X, Y, np.array(stream[0].todense()), np.array(stream[1].todense() ), 
+                   density=1.4, linewidth=None, color=color)
+    ax.set_xlabel(r"$x$")
+    ax.set_ylabel(r"$y$")
+    ax.set_title(r"$u|_{\partial\Omega}(x,y)$")
+    ax.grid(visible=None)
+    fig.colorbar(c, ax=ax)
+    
+    fig.tight_layout()
+    plt.show()
