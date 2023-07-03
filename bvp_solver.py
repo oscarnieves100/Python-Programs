@@ -150,9 +150,9 @@ class Rectangle(Shape):
                                         (X < x0 - (width-dx)/2) )
         self.right_boundary = csc_matrix( np.array(self.boundary.todense()) * \
                                          (X > x0 + (width-dx)/2) )
-        self.top_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.upper_boundary = csc_matrix( np.array(self.boundary.todense()) * \
                                        (Y > y0 + (height-dy)/2) )
-        self.bottom_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.lower_boundary = csc_matrix( np.array(self.boundary.todense()) * \
                                           (Y < y0 - (height-dy)/2) )
          
 class Superellipse(Shape):
