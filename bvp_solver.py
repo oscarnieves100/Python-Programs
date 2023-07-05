@@ -35,7 +35,7 @@ import numpy as np
 import numba as nb
 import scipy as sp
 import time
-from scipy.sparse import csc_matrix 
+from scipy.sparse import csc_matrix
 import matplotlib.pyplot as plt
 
 ###############################################################################
@@ -71,43 +71,43 @@ class Shape:
         if type(boundary) is not sp.sparse._csc.csc_matrix: boundary = csc_matrix(boundary)
         self.area = area
         self.boundary = boundary
-        self.hole = csc_matrix( np.logical_xor(area.todense(), boundary.todense()) )
+        self.hole = csc_matrix( np.logical_xor(area.toarray(), boundary.toarray()) )
         self.subdomains = []
         self.outer_boundary = self.extract_outer_boundary()
     
     def union(self, other):
-        self_area = self.area.todense()
-        other_area = other.area.todense()
+        self_area = self.area.toarray()
+        other_area = other.area.toarray()
         new_area = np.logical_or(self_area, other_area)
         new_boundary = extract_boundary(new_area)
         self.area = csc_matrix(new_area)
         self.boundary = csc_matrix(new_boundary)
         self.outer_boundary = self.extract_outer_boundary()
-        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
-                                               self.boundary.todense()) )
+        self.hole = csc_matrix( np.logical_xor(self.area.toarray(), 
+                                               self.boundary.toarray()) )
         
     def difference(self, other):
-        self_area = self.area.todense()
-        other_area = other.area.todense()
+        self_area = self.area.toarray()
+        other_area = other.area.toarray()
         intersection = np.logical_and(self_area, other_area)
         new_area = np.logical_and(self_area, np.logical_not(intersection))
         new_boundary = extract_boundary(new_area)
         self.area = csc_matrix(new_area)
         self.boundary = csc_matrix(new_boundary)
         self.outer_boundary = csc_matrix(new_boundary)
-        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
-                                               self.boundary.todense()) )
+        self.hole = csc_matrix( np.logical_xor(self.area.toarray(), 
+                                               self.boundary.toarray()) )
     
     def insert_hole(self, other):
-        self_area = self.area.todense()
-        other_area = other.area.todense()
+        self_area = self.area.toarray()
+        other_area = other.area.toarray()
         assert other_area in self_area
-        new_area = np.logical_xor(self_area, other.hole.todense())
+        new_area = np.logical_xor(self_area, other.hole.toarray())
         new_boundary = extract_boundary(new_area)
         self.area = csc_matrix(new_area)
         self.boundary = csc_matrix(new_boundary)
-        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
-                                               self.boundary.todense()) )
+        self.hole = csc_matrix( np.logical_xor(self.area.toarray(), 
+                                               self.boundary.toarray()) )
         self.subdomains.append( other )
         self.outer_boundary = self.extract_outer_boundary()
         
@@ -143,16 +143,16 @@ class Rectangle(Shape):
         self.width = width
         self.height = height
         self.area = csc_matrix( (abs(X-x0) <= width/2) * (abs(Y-y0) <= height/2) )
-        self.boundary = extract_boundary( self.area.todense() )
-        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
-                                               self.boundary.todense()) )
-        self.left_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.boundary = extract_boundary( self.area.toarray() )
+        self.hole = csc_matrix( np.logical_xor(self.area.toarray(), 
+                                               self.boundary.toarray()) )
+        self.left_boundary = csc_matrix( self.boundary.toarray() * \
                                         (X < x0 - (width-dx)/2) )
-        self.right_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.right_boundary = csc_matrix( self.boundary.toarray() * \
                                          (X > x0 + (width-dx)/2) )
-        self.upper_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.upper_boundary = csc_matrix( self.boundary.toarray() * \
                                        (Y > y0 + (height-dy)/2) )
-        self.lower_boundary = csc_matrix( np.array(self.boundary.todense()) * \
+        self.lower_boundary = csc_matrix( self.boundary.toarray() * \
                                           (Y < y0 - (height-dy)/2) )
          
 class Superellipse(Shape):
@@ -186,9 +186,9 @@ class Superellipse(Shape):
         self.height = height
         self.area = csc_matrix( abs((X-x0)/(width/2))**power + \
                     abs((Y-y0)/(height/2))**power <= 1 )
-        self.boundary = extract_boundary( self.area.todense() )
-        self.hole = csc_matrix( np.logical_xor(self.area.todense(), 
-                                               self.boundary.todense()) )
+        self.boundary = extract_boundary( self.area.toarray() )
+        self.hole = csc_matrix( np.logical_xor(self.area.toarray(), 
+                                               self.boundary.toarray()) )
 
 class Ellipse(Superellipse):
     """A regular ellipse shape. A subclass of Superellipse
@@ -313,9 +313,9 @@ def Laplacian(Nx: int, Ny: int, dx: float, dy: float):
 
 def grad(A: np.ndarray, dx: float, dy: float) -> list:
     (Ny,Nx) = np.shape(A)
-    A = csc_matrix( np.array(A.todense()).flatten()[:,None] )
-    grad_x = np.array((Dx(Nx, Ny, dx) @ A).todense()).reshape((Ny,Nx))
-    grad_y = np.array((Dy(Nx, Ny, dy) @ A).todense()).reshape((Ny,Nx))
+    A = csc_matrix( A.toarray().flatten()[:,None] )
+    grad_x = (Dx(Nx, Ny, dx) @ A).toarray().reshape((Ny,Nx))
+    grad_y = (Dy(Nx, Ny, dy) @ A).toarray().reshape((Ny,Nx))
     return [csc_matrix( grad_x ), csc_matrix( grad_y )]
 
 ###############################################################################
@@ -385,7 +385,7 @@ def solve_bvp(X: np.ndarray,
         CM = 'RdBu'
         
         fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
-        c = ax.pcolor(X, Y, np.array(u_boundary.todense()), cmap=CM)
+        c = ax.pcolor(X, Y, u_boundary.toarray(), cmap=CM)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_title(r"$u|_{\partial\Omega}(x,y)$")
@@ -395,7 +395,7 @@ def solve_bvp(X: np.ndarray,
         plt.show()
         
         fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
-        c = ax.pcolor(X, Y, np.array(solution.todense()), cmap=CM)
+        c = ax.pcolor(X, Y, solution.toarray(), cmap=CM)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_title(r"$u(x,y)$")
@@ -437,10 +437,10 @@ def linear_solver(LHS: np.ndarray,
     assert type(source) is sp.sparse._csc.csc_matrix
     N = np.prod( boundary.shape )
     
-    boundary_vector = np.array( boundary.todense() ).flatten()[None,:]
-    BC_vector = np.array( boundary_values.todense() ).flatten()[:,None]
-    inner_domain_vector = np.array( inner_domain.todense() ).flatten()[None,:]
-    source_in = np.array( source.todense() ).flatten()[:,None]
+    boundary_vector = boundary.toarray().flatten()[None,:]
+    BC_vector = boundary_values.toarray().flatten()[:,None]
+    inner_domain_vector = inner_domain.toarray().flatten()[None,:]
+    source_in = source.toarray().flatten()[:,None]
     
     # Move boundary values to RHS of equation system  
     LHS_mask = csc_matrix( LHS.multiply(boundary_vector) )
@@ -529,7 +529,7 @@ def mesh_search(xlims: tuple, ylims: tuple, Nmin:int, Nmax: int,
 ###############################################################################    
 def plot_matrix(A):
     if type(A) is sp.sparse._csc.csc_matrix: 
-        A_input = A.todense()
+        A_input = A.toarray()
     else:
         A_input = A
     plt.matshow(A_input); plt.colorbar()
@@ -540,8 +540,8 @@ def plot_stream(X:np.ndarray, Y: np.ndarray, A: np.ndarray,
     CM = 'RdBu'
     
     fig, ax = plt.subplots( figsize=(6,6), dpi=500 )
-    c = ax.pcolor(X, Y, np.array(A.todense()), cmap=CM)
-    ax.streamplot(X, Y, np.array(stream[0].todense()), np.array(stream[1].todense() ), 
+    c = ax.pcolor(X, Y, A.toarray(), cmap=CM)
+    ax.streamplot(X, Y, stream[0].toarray(), stream[1].toarray(), 
                    density=density, linewidth=None, color=color)
     ax.set_xlabel(r"$x$")
     ax.set_ylabel(r"$y$")
